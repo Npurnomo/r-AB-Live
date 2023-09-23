@@ -1,0 +1,95 @@
+---
+title: "AB LIVE!"
+format:
+  html:
+    gtid:
+      body-width: 2200px
+    resources: 
+      - shinylive-sw.js
+filters:
+  - shinylive
+---
+
+
+
+```{shinylive-r}
+#| standalone: true
+#| viewerHeight: 700
+# Load the necessary libraries
+library(shiny)
+
+# Define the UI
+ui <- fluidPage(
+  titlePanel("AB Test Visualization and a quick t-test"),
+  sidebarLayout(
+    sidebarPanel(
+      numericInput("mean1", "Mean of Sample A:", value = 0),
+      numericInput("variance1", "Variance of Sample A:", value = 1),
+      numericInput("n1", "Number of Observations A:", value = 1000),
+      numericInput("mean2", "Mean of Sample B:", value = 2),
+      numericInput("variance2", "Variance of Sample B:", value = 1),
+      numericInput("n2", "Number of Observations B:", value = 1000),
+      actionButton("update", "Update Plot")
+    ),
+    mainPanel(
+      plotOutput("ab_plot", height = "500px", width = "90%"),  # Adjust the plot height and width
+      div(style = "margin-top: 20px; text-align: center;", verbatimTextOutput("t_test_results"))  # Center the text
+    )
+  )
+)
+
+# Define the server
+server <- function(input, output) {
+  plot_data <- reactive({
+    # Generate data assuming normal distribution for Population A
+    data1 <- rnorm(input$n1, mean = input$mean1, sd = sqrt(input$variance1))
+    
+    # Generate data assuming normal distribution for Population B
+    data2 <- rnorm(input$n2, mean = input$mean2, sd = sqrt(input$variance2))
+    
+    # Create density plots for Population A and Population B
+    density1 <- density(data1)
+    density2 <- density(data2)
+    
+    # Perform t-test
+    t_test_result <- t.test(data1, data2)
+    
+    list(density1, density2, t_test_result)
+  })
+  
+  observeEvent(input$update, {
+    output$ab_plot <- renderPlot({
+      # Increase outer margin at the top
+      par(oma = c(0.1, 0.1, 0.1, 0.1))  # Adjust plot margins
+      
+      # Plot density for Population A with extended x-axis
+      plot(plot_data()[[1]], col = "forestgreen", main = "", xlab = "Value", ylab = "", yaxt = "n", bty = "n",
+           xlim = c(min(plot_data()[[1]]$x), max(plot_data()[[1]]$x)), cex.axis = 1.2)
+      
+      # Add density for Population B
+      lines(plot_data()[[2]], col = "purple")
+      
+      # Customize x-axis labels (adjust as needed)
+      axis(1, at = seq(floor(min(plot_data()[[1]]$x)), ceiling(max(plot_data()[[2]]$x)), by = 1), cex.axis = 1.2)
+      
+      # Add legend without a box at the top left
+      legend("topleft", legend = c("A", "B"), 
+             col = c("forestgreen", "purple"), lwd = 2, box.lwd = 0, cex = 1.2)
+      
+      # Add plot title
+      title("The Plot (assuming normality)", cex.main = 1.4)
+    })
+    
+    output$t_test_results <- renderText({
+      t_test_text <- paste("t-test p-value:", format(plot_data()[[3]]$p.value, digits = 3), "\n",
+                            "t statistic:", format(plot_data()[[3]]$statistic, digits = 3))
+      t_test_text
+    })
+  })
+}
+
+# Create and run the Shiny app
+shinyApp(ui = ui, server = server)
+
+```
+
